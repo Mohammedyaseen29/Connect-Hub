@@ -94,13 +94,13 @@ export const ManageModal = () => {
                 </DialogHeader>
                 
                 <ScrollArea className='mt-8'>
-                    {server?.member?.map((member)=>(
+                    {server?.member?.map((member:any)=>(
                         <div key={member.id} className='flex items-center gap-x-2 mb-6'>
                             <UserAvatar src={member.profile.imageUrl}/>
                             <div>
                                 <div className='flex mb-1'>
                                     <p className='text-xs font-semibold'>{member.profile.name}</p>
-                                    <p>{roleIconMap[member.role]}</p>
+                                    <p>{roleIconMap[member.role as keyof typeof roleIconMap]}</p>
                                 </div>
                                 <p className='text-xs text-zinc-500'>{member.profile.email}</p>
                             </div>

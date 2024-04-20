@@ -25,7 +25,7 @@ const ServerChannel = ({role,server,channel}:ServerChannelProps) => {
     const {onOpen} = useModal();
 
     const onclick = ()=>{
-        router.push(`/servers/${params.serverId}/channels/${channel.id}`)
+        router.push(`/servers/${params?.serverId}/channels/${channel.id}`);
     }
     const onAction = (e:React.MouseEvent,action:ModalType)=>{
         e.stopPropagation();
@@ -34,9 +34,9 @@ const ServerChannel = ({role,server,channel}:ServerChannelProps) => {
     }
 
     return (
-        <button onClick={()=>onclick()} className={cn('group hover:bg-zinc-700/10 hover:dark:bg-zinc-700/50 w-full flex items-center p-2 rounded-md mb-1 transition',params.channelId === channel.id && "bg-zinc-700/20 dark:bg-zinc-700")}>
+        <button onClick={()=>onclick()} className={cn('group hover:bg-zinc-700/10 hover:dark:bg-zinc-700/50 w-full flex items-center p-2 rounded-md mb-1 transition',params?.channelId === channel.id && "bg-zinc-700/20 dark:bg-zinc-700")}>
             <Icon className='flex-shrink-0 w-5 h-5 mr-2 text-zinc-500 dark:text-zinc-400'/>
-            <p className={cn('line-clamp-1 text-sm font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-600 hover:dark:text-zinc-300',params.channelId === channel.id && "text-primary dark:text-zinc-200 dark:group-hover:text-white")}>{channel.name}</p>
+            <p className={cn('line-clamp-1 text-sm font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-600 hover:dark:text-zinc-300',params?.channelId === channel.id && "text-primary dark:text-zinc-200 dark:group-hover:text-white")}>{channel.name}</p>
             {channel.name !== "general" && role !== MemberRole.GUEST &&(
                 <div className='ml-auto flex items-center gap-x-2'>
                     <ActionTooltip label='Edit' side='top'>

@@ -89,8 +89,7 @@ export const   CreateChannel = () => {
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
-                    )}>
-                    </FormField>
+                    )}/>
                     <div className='px-6 mt-2'>
                         <FormField control={form.control} name='type' render={({field})=>(
                         <FormItem>
@@ -107,9 +106,7 @@ export const   CreateChannel = () => {
                                 </SelectContent>
                             </Select>
                         </FormItem>
-                    )}>
-                        
-                    </FormField>
+                    )} />
                     </div>
                     </div>
                 </Form>

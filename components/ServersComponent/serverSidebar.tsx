@@ -43,14 +43,14 @@ const ServerSidebar = async({serverId}:ServerSidebarProps) => {
             }
         }
     })
-    const TextChannel = server?.channel.filter((channel)=>channel.type === ChannelType.TEXT);
-    const AudioChannel = server?.channel.filter((channel)=>channel.type === ChannelType.AUDIO);
-    const VideoChannel = server?.channel.filter((channel)=>channel.type === ChannelType.VIDEO);
-    const members = server?.member.filter((member)=>member.profileId !== profile.id)
+    const TextChannel = server?.channel.filter((channel:any)=>channel.type === ChannelType.TEXT);
+    const AudioChannel = server?.channel.filter((channel:any)=>channel.type === ChannelType.AUDIO);
+    const VideoChannel = server?.channel.filter((channel:any)=>channel.type === ChannelType.VIDEO);
+    const members = server?.member.filter((member:any)=>member.profileId !== profile.id)
     if(!server){
         return redirect("/")
     }
-    const role = server.member.find((member)=>member.profileId === profile.id)?.role
+    const role = server.member.find((member:any)=>member.profileId === profile.id)?.role
     const iconMap = {
         [ChannelType.TEXT]:<MessagesSquare className="mr-2 w-4 h-4"/>,
         [ChannelType.AUDIO]:<Mic className="mr-2 w-4 h-4"/>,
@@ -70,37 +70,37 @@ const ServerSidebar = async({serverId}:ServerSidebarProps) => {
                     {
                         label:"Text Streamlines",
                         type:"channel",
-                        data: TextChannel?.map((channel)=>({
+                        data: TextChannel?.map((channel:any)=>({
                             id:channel.id,
                             name:channel.name,
-                            icon:iconMap[channel.type]
+                            icon:iconMap[channel.type as keyof typeof iconMap]
                         }))
                     },
                     {
                         label:"Voice Streamlines",
                         type:"channel",
-                        data: AudioChannel?.map((channel)=>({
+                        data: AudioChannel?.map((channel:any)=>({
                             id:channel.id,
                             name:channel.name,
-                            icon:iconMap[channel.type]
+                            icon:iconMap[channel.type as keyof typeof iconMap]
                         }))
                     },
                     {
                         label:"Video Streamlines",
                         type:"channel",
-                        data: VideoChannel?.map((channel)=>({
+                        data: VideoChannel?.map((channel:any)=>({
                             id:channel.id,
                             name:channel.name,
-                            icon:iconMap[channel.type]
+                            icon:iconMap[channel.type as keyof typeof iconMap]
                         }))
                     },
                     {
                         label:"Members",
                         type:"member",
-                        data: members?.map((member)=>({
+                        data: members?.map((member:any)=>({
                             id:member.id,
                             name:member.profile.name,
-                            icon:roleIconMap[member.role]
+                            icon:roleIconMap[member.role as keyof typeof roleIconMap]
                         }))
                     },
 
@@ -111,7 +111,7 @@ const ServerSidebar = async({serverId}:ServerSidebarProps) => {
                 <div className='mb-4'>
                     <ServerSection sectionType="channel" channelType={ChannelType.TEXT} role={role} label="Text Streamlines" server={server}/>
                     <div className='space-y-[2px]'>
-                        {TextChannel?.map((channel) => (
+                        {TextChannel?.map((channel:any) => (
                             <ServerChannel key={channel.id} server={server} channel={channel} role={role} />
                         ))}
                     </div>
@@ -121,7 +121,7 @@ const ServerSidebar = async({serverId}:ServerSidebarProps) => {
                 <div className='mb-4'>
                     <ServerSection sectionType="channel" channelType={ChannelType.AUDIO} role={role} label="Audio Streamlines" server={server}/>
                     <div className='space-y-[2px]'>
-                        {AudioChannel?.map((channel) => (
+                        {AudioChannel?.map((channel:any) => (
                             <ServerChannel key={channel.id} server={server} channel={channel} role={role} />
                         ))}
                     </div>    
@@ -131,7 +131,7 @@ const ServerSidebar = async({serverId}:ServerSidebarProps) => {
                 <div className='mb-4'>
                     <ServerSection sectionType="channel" channelType={ChannelType.VIDEO} role={role} label="Video Streamlines" server={server}/>
                     <div className='space-y-[2px]'>
-                    {VideoChannel?.map((channel) => (
+                    {VideoChannel?.map((channel:any) => (
                         <ServerChannel key={channel.id} server={server} channel={channel} role={role} />
                     ))}
                     </div>
@@ -141,7 +141,7 @@ const ServerSidebar = async({serverId}:ServerSidebarProps) => {
                     <div className='mb-4'>
                         <ServerSection sectionType='member' role={role} label='Members' server={server}/>
                         <div className='space-y-[2px]'>
-                        {members.map((member)=>(
+                        {members.map((member:any)=>(
                             <ServerMember key={member.id} member={member} server={server}/>
                         ))}
                         </div>  

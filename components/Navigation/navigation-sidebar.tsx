@@ -8,6 +8,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import NavigationItem from './navigationItem';
 import { ModelToggle } from '../model-toggle';
 import { UserButton } from '@clerk/nextjs';
+import { Server } from '@prisma/client';
 
 
 const NavigationSb = async() => {
@@ -29,7 +30,7 @@ const NavigationSb = async() => {
             <NavigationAction />
             <Separator className='h-[2px] w-10 rounded-md bg-zinc-300 dark:bg-zinc-700 mx-auto' />
             <ScrollArea className='flex-1'>
-                {servers.map((server)=>(
+                {servers.map((server:Server)=>(
                     <div key={server.id} className='mb-4'>
                         <NavigationItem id={server.id} name={server.name} imgUrl={server.imageUrl} />
                     </div>

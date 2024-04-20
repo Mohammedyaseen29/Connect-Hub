@@ -71,7 +71,7 @@ const formSchema = z.object({
         window.addEventListener("keydown",handleKeydown);
 
         return () => window.removeEventListener("keydown",handleKeydown);
-    },[])
+    },[() => form])
 
         const onMemberClick = ()=>{
             if(member.id === currentMember.id){

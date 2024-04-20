@@ -19,7 +19,7 @@ const iconMap ={
 }
 
 const ServerChannel = ({role,server,channel}:ServerChannelProps) => {
-    const Icon =iconMap[channel.type]
+    const Icon =iconMap[channel.type as keyof typeof iconMap]
     const params = useParams();
     const router = useRouter();
     const {onOpen} = useModal();

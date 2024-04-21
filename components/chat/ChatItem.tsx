@@ -74,7 +74,7 @@ const formSchema = z.object({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     },[])
 
-        const onMemberClick = ()=>{
+        const onMemberClick = ()    =>{
             if(member.id === currentMember.id){
                 return;
             }

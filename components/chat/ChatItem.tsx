@@ -17,6 +17,8 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { useModal } from "@/Hooks/use-modal-hook";
 import { useParams,useRouter } from "next/navigation";
+import Linkify from "react-linkify";
+
 
 
 interface ChatItemProps{
@@ -100,6 +102,27 @@ const formSchema = z.object({
             content:content,
         })
         },[content])
+
+        const renderContentWithLinks = (text: string) => {
+            return (
+                <Linkify
+                    componentDecorator={(decoratedHref, decoratedText, key) => (
+                        <a
+                            href={decoratedHref}
+                            key={key}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 underline"
+                        >
+                            {decoratedText}
+                        </a>
+                    )}
+                >
+                    {text}
+                </Linkify>
+            );
+        };
+
         
 
         
@@ -132,12 +155,11 @@ const formSchema = z.object({
                             <a href={fileUrl} target="_blank" rel="noopenner noreferrer" className="text-sm ml-2 hover:underline text-indigo-500 dark:text-indigo-400">PDF file</a>
                         </div>
                     )}
+
                     {!fileUrl && !isEditing && (
                         <p className={cn("text-sm text-zinc-600 dark:text-zinc-300",deleted && "italic text-zinc-500 dark:text-zinc-400 mt-1")}>
-                            {content}
-                            {isUpdated && !deleted && (
-                                <span className="text-[10px] mx-2 text-zinc-500 dark:text-zinc-400">(edited)</span>
-                            )}
+                            {renderContentWithLinks(content)}
+                            {isUpdated && <span className="mx-2 text-[10px] text-zinc-400 dark:text-zinc-500">(edited)</span>}
                         </p>
                     )}
                     {!fileUrl && isEditing && (

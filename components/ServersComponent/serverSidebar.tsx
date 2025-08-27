@@ -2,7 +2,7 @@ import React from 'react'
 import { db } from '@/lib/db';
 import {MessagesSquare, Mic, ShieldAlert, ShieldCheck, Video } from "lucide-react";
 import { currentProfile } from '@/lib/current-profile';
-import { redirectToSignIn } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { ChannelType } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import ServerHeader from './ServerHeader';
@@ -19,6 +19,7 @@ interface ServerSidebarProps{
 }
 
 const ServerSidebar = async({serverId}:ServerSidebarProps) => {
+    const {redirectToSignIn} = await auth();
     const profile = await currentProfile();
     if(!profile){
         return redirectToSignIn();

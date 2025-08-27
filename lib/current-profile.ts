@@ -1,10 +1,10 @@
-import { auth } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 import { db } from "./db";
 
 
 export async function currentProfile(){
 
-    const {userId} = auth();
+    const {userId} = await auth();
 
     if(!userId){
         return null;

@@ -14,7 +14,7 @@ import { useModal } from '@/Hooks/use-modal-hook'
 
 
 
-export const   CreateModal = () => {
+export const CreateModal = () => {
     const {type,isopen,onClose} = useModal();
 
     const formSchema = z.object({

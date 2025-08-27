@@ -1,8 +1,8 @@
-    import { auth } from "@clerk/nextjs";
+    import { auth } from "@clerk/nextjs/server";
     import { createUploadthing, type FileRouter } from "uploadthing/next";
 
-    const handleAuth = ()=>{
-        const {userId} = auth();
+    const handleAuth = async()=>{
+        const {userId} =await auth();
         if(!userId){
             throw new Error("unAuthorized access")
         }

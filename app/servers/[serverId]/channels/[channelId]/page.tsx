@@ -3,7 +3,7 @@ import ChatHeader from '@/components/chat/ChatHeader';
 import ChatInput from '@/components/chat/ChatInput';
 import { currentProfile } from '@/lib/current-profile';
 import { db } from '@/lib/db';
-import { redirectToSignIn } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { ChannelType } from '@prisma/client';
 import { MediaRoom } from '@/components/media-room';
@@ -17,6 +17,7 @@ interface chatheaderProps{
 }
 const page = async({params}:chatheaderProps) => {
     const profile = await currentProfile();
+    const {redirectToSignIn} = await auth();
     if(!profile){
         return redirectToSignIn();
     }

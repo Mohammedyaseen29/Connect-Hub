@@ -2,11 +2,12 @@ import React from 'react'
 import { db } from '@/lib/db';
 import { currentProfile } from '@/lib/current-profile';
 import { redirect } from 'next/navigation';
-import { redirectToSignIn } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import ServerSidebar from '@/components/ServersComponent/serverSidebar';
 
 const ServerIdlayout = async({children,params}:{children:React.ReactNode; params:{serverId:string}}) => {
     const profile = await currentProfile();
+    const { redirectToSignIn } = await auth();
 
     if(!profile){
         return redirectToSignIn();

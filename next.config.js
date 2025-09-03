@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 // Configuration options for Next.js
 const nextConfig = {
+    output : "standalone",
     reactStrictMode: true, // Enable React strict mode for improved error handling
     swcMinify: true,      // Enable SWC minification for improved performance
     compiler: {

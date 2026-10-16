@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import ServerSidebar from '@/components/ServersComponent/serverSidebar';
 
-const ServerIdlayout = async({children,params}:{children:React.ReactNode; params:{serverId:string}}) => {
+const ServerIdlayout = async({children,params: paramsPromise}:{children:React.ReactNode; params: Promise<{ serverId: string }>}) => {
+    const params = await paramsPromise;
     const profile = await currentProfile();
     const { redirectToSignIn } = await auth();
 

@@ -10,17 +10,19 @@ import { redirect } from "next/navigation";
 
 
 interface MemberIdprops{
-    params:{
+    params:Promise<{
         serverId:string;
         memberId:string;
-    },
-    searchParams:{
+    }>,
+    searchParams:Promise<{
         video?: boolean;
-    }
+    }>
 }
 
 
-const page = async({params,searchParams}:MemberIdprops) => {
+const page = async({params: paramsPromise,searchParams: searchParamsPromise}:MemberIdprops) => {
+    const params = await paramsPromise;
+    const searchParams = await searchParamsPromise;
     const profile = await currentProfile();
     const { redirectToSignIn } = await auth();
     if(!profile){

@@ -3,7 +3,8 @@ import { auth} from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 
-const inviteCodePage = async({params}:{params:{inviteCode:string}}) => {
+const inviteCodePage = async({ params: paramsPromise }:{params: Promise<{ inviteCode: string }>}) => {
+    const params = await paramsPromise;
     const profile = await currentProfile();
     const {redirectToSignIn} = await auth();
     if(!profile){

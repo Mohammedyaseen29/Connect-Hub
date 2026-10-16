@@ -1,8 +1,9 @@
 import { currentProfile } from "@/lib/current-profile";
-import {v4 as uuidv4} from "uuid"
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
-export async function PATCH(req:Request,{params}:{params:{serverId:string}}){
+export async function PATCH(req:Request,{ params: paramsPromise }:{params: Promise<{ serverId: string }>}){
+    const params = await paramsPromise;
     try {
         const profile = await currentProfile();
         if(!profile){
@@ -18,7 +19,7 @@ export async function PATCH(req:Request,{params}:{params:{serverId:string}}){
                 profileId:profile.id
             },
             data:{
-                inviteCode: uuidv4(),
+                inviteCode: randomUUID(),
             }
         })
         return NextResponse.json(server)

@@ -17,21 +17,25 @@ export const MediaRoom = ({chatId,video,audio}:MediaRoomProps)=>{
     const {user} = useUser();
     const [token,setToken] = useState("");
     useEffect(()=>{
-        if(!user?.firstName || !user?.lastName) return;
+        if(!user?.id) return;
+        let active = true;
+        setToken("");
 
-        const name = `${user.firstName} ${user.lastName}`;
+
 
         (async ()=>{
             try{
-                const res = await fetch(`/api/livekit?room=${chatId}&username=${name}`);
+                const res = await fetch(`/api/livekit?room=${encodeURIComponent(chatId)}`, { cache: "no-store" });
+                if (!res.ok) throw new Error("Unable to join room");
                 const data = await res.json();
-                setToken(data.token);
+                if (active) setToken(data.token);
             }catch(e){
                 console.log(e);
             }
         })();
 
-    },[user?.firstName,user?.lastName,chatId]);
+        return () => { active = false; };
+    },[user?.id,chatId]);
     if(token === ""){
         return(
             <div className="flex flex-col flex-1 items-center justify-center">

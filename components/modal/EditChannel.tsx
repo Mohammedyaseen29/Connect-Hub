@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useModal } from '@/Hooks/use-modal-hook'
 import { ChannelType } from '@prisma/client'
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from '../ui/select'
-import qs from "query-string"
+import qs from "@/lib/query-url"
 
 
 

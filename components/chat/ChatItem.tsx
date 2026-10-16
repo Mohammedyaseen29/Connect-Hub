@@ -1,4 +1,7 @@
-"use client"
+"use client";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChatData, upsertMessage } from "@/lib/chat-cache.cjs";
+
 
 import { Member, MemberRole, Profile } from "@prisma/client";
 import UserAvatar from "../UserAvatar";
@@ -9,7 +12,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import * as z from "zod";
 import axios from "axios"
-import qs from "query-string";
+import qs from "@/lib/query-url";
 import {useForm} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form,FormControl,FormItem,FormField } from "../ui/form";
@@ -17,7 +20,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { useModal } from "@/Hooks/use-modal-hook";
 import { useParams,useRouter } from "next/navigation";
-import Linkify from "react-linkify";
+
 
 
 
@@ -25,7 +28,7 @@ interface ChatItemProps{
     id:string;
     content:string;
     member:Member & { profile : Profile;};
-    fileUrl:string;
+    fileUrl:string | null;
     deleted:boolean;
     timeStamp:string;
     currentMember:Member,
@@ -45,11 +48,12 @@ const formSchema = z.object({
         "ADMIN": <ShieldAlert className="h-4 w-4 ml-2 text-rose-500" />,
         }
         const {onOpen} = useModal();
+    const queryClient = useQueryClient();
         const filetype = fileUrl?.split(".").pop();
         const isAdmin = currentMember.role === MemberRole.ADMIN;
         const isModerator = currentMember.role === MemberRole.MODERATOR;
         const isOwner = currentMember.id === member.id;
-        const canDeleteMessage = !deleted && (isAdmin || isModerator || isOwner);
+        const canDeleteMessage = !deleted && (isOwner || (!!socketQuery.channelId && (isAdmin || isModerator)));
         const canEditMessage = !deleted && isOwner && !fileUrl;
         const isPDF = filetype === "pdf" && fileUrl;
         const isImage = !isPDF && fileUrl;
@@ -63,7 +67,7 @@ const formSchema = z.object({
                 content:content
             }
         })
-        const isLoading = form.formState.isLoading;
+        const isLoading = form.formState.isSubmitting;
         useEffect(()=>{
         const handleKeydown = (e:any)=>{
             if(e.key === "Escape" || e.KeyCode === 27){
@@ -86,13 +90,13 @@ const formSchema = z.object({
 
         const onSubmit = async(values:z.infer<typeof formSchema>)=>{
             try {
-                form.reset();
-                setIsEditing(false);
+
                 const url = qs.stringifyUrl({
                     url:`${socketUrl}/${id}`,
                     query:socketQuery,
                 })
-                await axios.patch(url,values);
+                const { data: message } = await axios.patch(url, values);
+            queryClient.setQueryData<ChatData>(["chat:" + (socketQuery.channelId || socketQuery.conversationId)], (data) => upsertMessage(data, message));
             } catch (error) {
                 console.log(error)
             }
@@ -101,26 +105,13 @@ const formSchema = z.object({
             form.reset({
             content:content,
         })
-        },[content])
+        },[content, form])
 
         const renderContentWithLinks = (text: string) => {
-            return (
-                <Linkify
-                    componentDecorator={(decoratedHref, decoratedText, key) => (
-                        <a
-                            href={decoratedHref}
-                            key={key}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 underline"
-                        >
-                            {decoratedText}
-                        </a>
-                    )}
-                >
-                    {text}
-                </Linkify>
-            );
+            return text.split(/(https?:\/\/[^\s<>]+)/g).map((part, index) => {
+                if (!/^https?:\/\//.test(part)) return part;
+                return <a href={part} key={index} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{part}</a>;
+            });
         };
 
         
@@ -145,7 +136,7 @@ const formSchema = z.object({
                         </span>
                     </div>
                     {isImage && (
-                        <a href={fileUrl} target="_blank" rel="noopenner noreferrer" className="w-48 h-48 bg-secondary rounded-md mt-2 flex items-center relative aspect-square">
+                        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="w-48 h-48 bg-secondary rounded-md mt-2 flex items-center relative aspect-square">
                             <Image src={fileUrl} alt={content} fill className="object-cover"/>
                         </a>
                     )}
@@ -174,7 +165,7 @@ const formSchema = z.object({
                                         </FormControl>
                                     </FormItem>
                                 )} />
-                                <Button size="sm" variant="primary" onClick={form.handleSubmit(onSubmit)}disabled={isLoading}>Save</Button>
+                                <Button size="sm" variant="primary" type="submit" disabled={isLoading}>Save</Button>
                             </form>
                             <span className="text-zinc-400 text-[10px] mt-1">Press ESC to cancel, press enter to Save</span>
                         </Form>

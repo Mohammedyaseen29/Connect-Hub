@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { MemberRole } from "@prisma/client";
 import { NextResponse } from "next/server";
 
-export async function DELETE(req:Request,{params}:{params:{channelId:string}}){
+export async function DELETE(req:Request,{ params: paramsPromise }:{params: Promise<{ channelId: string }>}){
+    const params = await paramsPromise;
     try {
         const profile = await currentProfile();
         const {searchParams} = new URL(req.url);
@@ -48,7 +49,8 @@ export async function DELETE(req:Request,{params}:{params:{channelId:string}}){
         return new NextResponse("Internal Error",{status:500})
     }
 }
-export async function PATCH(req:Request,{params}:{params:{channelId:string}}) {
+export async function PATCH(req:Request,{ params: paramsPromise }:{params: Promise<{ channelId: string }>}) {
+    const params = await paramsPromise;
     try {
         const profile = await currentProfile();
         const {searchParams} = new URL(req.url);

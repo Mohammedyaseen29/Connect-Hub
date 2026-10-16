@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Connect Hub
 
-## Getting Started
+## Development and verification
 
-First, run the development server:
+Use Node.js 22 LTS or newer. Configure Clerk, PostgreSQL/Prisma, UploadThing, and LiveKit credentials in an untracked .env file.
 
-```bash
+```sh
+npm ci
+npx prisma generate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. Start the app through these npm scripts: the custom server initializes Socket.IO before serving requests. Running next dev or next start directly bypasses realtime delivery.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sh
+npm test
+npm run typecheck
+npm run lint
+npm run build
+npm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+Tests use real HTTP and WebSocket clients with fixture authentication/database data. They cover channel and direct delivery, reconnection, authorization, revoked membership, duplicate events, and uncached recovery. They do not measure your deployed database or network.
 
-## Learn More
+## Docker / VPS deployment
 
-To learn more about Next.js, take a look at the following resources:
+```sh
+docker compose up -d --build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The container starts a persistent Node server on port 3000. Runtime secrets come from .env. NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is required at build time. The socket client uses the current site's origin; NEXT_PUBLIC_SITE_URL is no longer needed for messaging.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+For Nginx, pass WebSocket upgrade headers and the public host to the container. Define the map in the http context and the location in the site's existing TLS server block:
 
-## Deploy on Vercel
+```nginx
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Host $http_host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 75s;
+    proxy_buffering off;
+}
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Override incoming forwarded headers at the trusted reverse proxy. Configure Clerk to allow your public domain. Use one app instance for immediate socket delivery; multiple replicas require a shared Socket.IO adapter (such as Redis) and sticky sessions for the polling transport. A connected chat also fetches its newest page every 10 seconds to recover missed events; disconnected/unsubscribed chats fetch every second. Rejoining a chat immediately refreshes its messages.
+
+After redeploying, reload both clients so they receive the new socket and service worker code. The new worker caches only public static bundles and deletes private caches left by the previous version.
+
+To verify the deployment, sign in as two different users in separate browsers, open the same channel or direct conversation, and send, edit, and delete messages. Verify the recipient updates immediately. Disconnect/reconnect one browser and verify its missed messages appear. Check the browser network panel for a successful /api/socket/io WebSocket upgrade. An HTTP 503 from that route means the app was started without the custom server.
+
+See [SECURITY_REVIEW.md](SECURITY_REVIEW.md) for the security findings, audit scope, and verification limits.
+
+## Render deployment
+
+Deploy this working tree's fixes to the Git branch connected to Render before rebuilding. Redeploying an older commit will keep the old message handlers and socket client.
+
+Use a Docker Web Service with the included Dockerfile. Supply the existing service credentials as Render environment variables, including NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY for the image build. The image runs npm start, which starts the custom persistent server; do not override it with next start. Start with one service instance. Keep secrets out of Git and Docker build arguments.
+
+For this app's existing Mumbai database, Singapore is the closest listed Render region. Compare database Server-Timing and end-to-end delivery after deployment before deciding on a region migration. Render requires creating a new service to change region. Free services may spin down after 15 minutes without incoming HTTP/WebSocket traffic; upgrading compute can avoid that idle startup delay but does not replace deploying the code fixes.
+
+After Render reports the new commit as live, reload both clients. Verify the socket handshake advertises maxPayload 16384, signed-in clients successfully acknowledge chat:subscribe, and message POST responses include a Server-Timing db duration. Then measure sending from one account to a second account in the same channel. See [Render's WebSocket documentation](https://render.com/docs/websocket) and [Free service limits](https://render.com/docs/free).

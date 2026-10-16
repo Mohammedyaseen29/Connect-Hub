@@ -22,7 +22,7 @@
         variant="outline" 
         className="bg-emerald-600 text-white border-none"
         >
-        Live: Real-time updates
+        Connected: Live updates with recovery
         </Badge>
     )
     }

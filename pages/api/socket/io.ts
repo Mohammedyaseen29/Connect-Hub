@@ -1,35 +1,6 @@
-import {Server as NetServer} from "http";
-import { NextApiRequest } from "next";
-import {Server as ServerIO} from "socket.io";
+import { NextApiRequest, NextApiResponse } from "next";
 
-import { NextApiResponseServerio } from "@/type";
-
-export const config = {
-    api:{
-        bodyParser:false,
-    },
-};
-
-
-
-const ioHandler = (req:NextApiRequest,res:NextApiResponseServerio)=>{
-    if(!res.socket.server.io){
-        const path = "/api/socket/io";
-        const httpServer:NetServer = res.socket.server as any;
-
-        const io = new ServerIO(httpServer,{
-            path:path,
-            addTrailingSlash:false,
-            cors:{
-                origin: "*",
-                methods: ["GET", "POST"]    
-            },
-            transports: ['websocket', 'polling'],
-        });
-
-        res.socket.server.io = io;
-    }
-    res.end();
+// Socket.IO is attached by server.js before requests arrive.
+export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+    res.status(503).json({ error: "Realtime requires npm run dev or npm start on a persistent Node server" });
 }
-
-export default ioHandler;

@@ -43,3 +43,9 @@ next-env.d.ts
 **/public/sw.js.map
 **/public/workbox-*.js.map
 **/public/worker-*.js.map
+/.npm-cache/
+/audit-before.json
+/audit-after.json
+/audit-current.json
+/audit-registry.json
+/audit-all.json

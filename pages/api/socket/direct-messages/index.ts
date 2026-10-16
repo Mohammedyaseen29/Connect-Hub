@@ -1,89 +1,30 @@
-
-import { currentPagesProfile } from "@/lib/current-pagesprofile";
-import { db } from "@/lib/db";
+import { NextApiRequest } from "next";
 import { NextApiResponseServerio } from "@/type";
-import { error } from "console";
-import { NextApiRequest} from "next";
+import { currentPagesUserId } from "@/lib/current-pagesprofile";
+import { chatIdSchema, messageCreateSchema } from "@/lib/message-validation";
+import { createChatMessage } from "@/lib/create-chat-message";
+import { broadcastChatMessage } from "@/lib/chat-realtime.cjs";
 
-export default async function handler(req:NextApiRequest,res:NextApiResponseServerio){
-    if(req.method !== "POST"){
-        return res.status(405).json({error:"This method is not allowed!"})
-    }
-try {
-    const profile = await currentPagesProfile(req);
-    const {content,fileUrl} = req.body;
-    const {conversationId} = req.query;
-    if(!profile){
-        return res.status(401).json({error:"UnAuthorized data"});
-    }
-    if(!content){
-        return res.status(400).json({error:"content missing!"})
-    }
-    if(!conversationId){
-        return res.status(400).json({error:"ConversationId is Missing!"})
-    }
-    
-    const conversation = await db.conversation.findFirst({
-        where:{
-            id: conversationId as string,
-            OR:[
-                {
-                    memberOne:{
-                        profileId:profile.id,
-                    }
-                },
-                {
-                    memberTwo:{
-                        profileId:profile.id,
-                    }
-                },
-            ]
-        },
-        include:{
-            memberOne:{
-                include:{
-                    profile:true,
-                }
-            },
-            memberTwo:{
-                include:{
-                    profile:true,
-                }
-            },
+export default async function handler(req: NextApiRequest, res: NextApiResponseServerio) {
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+    try {
+        const userId = await currentPagesUserId(req);
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
+        const body = messageCreateSchema.safeParse(req.body);
+        const chatId = chatIdSchema.safeParse(req.query.conversationId);
+
+        if (!body.success || !chatId.success) {
+            return res.status(400).json({ error: "Invalid message or chat" });
         }
-    })
-    if(!conversation){
-        return res.status(404).json({message:"Conversation not found"});
+        const start = performance.now();
+        const created = await createChatMessage({ userId, type: "conversation", chatId: chatId.data, ...body.data });
+        if (!created) return res.status(404).json({ error: "Chat not found" });
+        res.setHeader("Server-Timing", "db;dur=" + (performance.now() - start).toFixed(1));
+        broadcastChatMessage(res.socket?.server?.io, { type: "conversation", id: chatId.data }, created.message, created.recipientProfileIds);
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.status(200).json(created.message);
+    } catch (error) {
+        console.error("[CONVERSATION_MESSAGE_POST]", error);
+        return res.status(500).json({ error: "Internal Error" });
     }
-
-
-    const member = conversation.memberOne.profileId === profile.id ? conversation.memberOne : conversation.memberTwo
-    if(!member){
-        return res.status(404).json({error:"member not found!"})
-    }
-        const message = await db.directMessage.create({
-        data: {
-            content,
-            fileUrl,
-            conversationId: conversationId as string,
-            memberId: member.id,
-        },
-        include: {
-            member: {
-            include: {
-                profile: true,
-            }
-            }
-        }
-        });
-
-    const channelKey = `chat:${conversationId}:messages`;
-
-    res?.socket?.server?.io?.emit(channelKey, message);
-
-    return res.status(200).json(message);
-} catch (error) {
-    console.log("[DIRECT_MESSAGE ERROR]",error);
-    return res.status(500).json({error:"Internal error"})
-}
 }

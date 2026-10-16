@@ -1,74 +1,43 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { currentProfile } from "@/lib/current-profile";
-import { Message } from "@prisma/client";
+import { canAccessChat } from "@/lib/chat-realtime.cjs";
+import { chatIdSchema } from "@/lib/message-validation";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-export async function GET(req:Request){
+export async function GET(req: Request) {
     try {
-        const MESSAGE_BATCH = 10;
         const profile = await currentProfile();
-        const {searchParams} = new URL(req.url);
+        if (!profile) return new NextResponse("Unauthorized", { status: 401 });
+        const { searchParams } = new URL(req.url);
+        const chatId = chatIdSchema.safeParse(searchParams.get("channelId"));
         const cursor = searchParams.get("cursor");
-        const channelId = searchParams.get("channelId");
-
-        if(!profile){
-            return new NextResponse("UnAuthorized Access",{status:401});
+        if (!chatId.success || (cursor !== null && !chatIdSchema.safeParse(cursor).success)) {
+            return new NextResponse("Invalid chat or cursor", { status: 400 });
         }
-        if(!channelId){
-            return new NextResponse("ChannelId is missig!",{status:400});
+        if (!await canAccessChat(db, profile.id, { type: "channel", id: chatId.data })) {
+            return new NextResponse("Chat not found", { status: 404 });
         }
-        let messages:Message[] = [];
-        if(cursor){
-            messages = await db.message.findMany({
-                take:MESSAGE_BATCH,
-                skip:1,
-                cursor:{
-                    id:cursor
-                },
-                where:{
-                    channelId,
-                },
-                include:{
-                    member:{
-                        include:{
-                            profile:true,
-                        }
-                    }
-                },
-                orderBy:{
-                    createdAt:"desc"
-                }
-            },
-            )
-        }else{
-            messages = await db.message.findMany({
-                take:MESSAGE_BATCH,
-                where:{
-                    channelId,
-                },
-                include:{
-                    member:{
-                        include:{
-                            profile:true,
-                        }
-                    }
-                },
-                orderBy:{
-                    createdAt:"desc"
-                }
-            })
+        const where = { channelId: chatId.data };
+        if (cursor && !await db.message.findFirst({ where: { ...where, id: cursor }, select: { id: true } })) {
+            return new NextResponse("Invalid cursor", { status: 400 });
         }
-        let nextCursor = null;
-        if(messages.length === MESSAGE_BATCH){
-            nextCursor = messages[MESSAGE_BATCH - 1].id;
-        }
-        return NextResponse.json({
-            items:messages,
-            nextCursor,
+        const batch = 50;
+        const messages = await db.message.findMany({
+            take: batch,
+            ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+            where,
+            include: { member: { include: { profile: true } } },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         });
+        return NextResponse.json({
+            items: messages,
+            nextCursor: messages.length === batch ? messages[batch - 1].id : null,
+        }, { headers: { "Cache-Control": "private, no-store, max-age=0", "Vary": "Cookie, Authorization" } });
     } catch (error) {
-        console.log("[MESSAGE ROUTE ERROR]",error);
-        return new NextResponse("Internal Error",{status:500});
+        console.error("[MESSAGES_GET]", error);
+        return new NextResponse("Internal Error", { status: 500 });
     }
 }

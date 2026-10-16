@@ -1,10 +1,13 @@
-"use client"
+"use client";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChatData, upsertMessage } from "@/lib/chat-cache.cjs";
+
 import React from 'react'
 import { useState} from 'react'
 import { Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle} from '../ui/dialog'
 import { Button } from '../ui/button'
 import { useModal } from '@/Hooks/use-modal-hook'
-import qs from "query-string";
+import qs from "@/lib/query-url";
 
 import axios from 'axios'
 import { useRouter } from 'next/navigation'
@@ -15,6 +18,7 @@ import { useRouter } from 'next/navigation'
 
 export const DeleteMessageModal = () => {
     const {type,isopen,onClose,data} = useModal();
+    const queryClient = useQueryClient();
     const isOpenModal = isopen && type === "deleteMessage";
     const {apiUrl,query} = data;
     const [isloading,setLoading] = useState(false)
@@ -26,7 +30,8 @@ export const DeleteMessageModal = () => {
                 url:apiUrl || "",
                 query,
             })
-            await axios.delete(url)
+            const { data: message } = await axios.delete(url);
+            queryClient.setQueryData<ChatData>(["chat:" + (query?.channelId || query?.conversationId)], (data) => upsertMessage(data, message));
             onClose();
             
         } catch (error) {

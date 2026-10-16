@@ -2,12 +2,14 @@
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
-import qs from "query-string";
+import qs from "@/lib/query-url";
 import { useForm } from "react-hook-form";
-import { Form, FormControl, FormField, FormItem } from "../ui/form";
+import { useRef } from "react";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
 import { ArrowUp, Plus, Smile } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChatData, upsertMessage } from "@/lib/chat-cache.cjs";
 import { useModal } from "@/Hooks/use-modal-hook";
 import EmojiPicker from "../EmojiPicker";
 
@@ -19,11 +21,11 @@ interface ChatInputProps {
 }
 
 const ChatInput = ({ apiUrl, query, name, type }: ChatInputProps) => {
-    const router = useRouter();
+    const queryClient = useQueryClient();
     const { onOpen } = useModal();
 
     const formSchema = z.object({
-        content: z.string().min(1),
+        content: z.string().trim().min(1).max(4000),
     })
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -34,31 +36,30 @@ const ChatInput = ({ apiUrl, query, name, type }: ChatInputProps) => {
     });
 
     const isLoading = form.formState.isSubmitting;
+    const sending = useRef(false);
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
+        if (sending.current) return;
+        sending.current = true;
         try {
-            const originalContent = values.content;
-            form.reset();
 
             const url = qs.stringifyUrl({
                 url: apiUrl,
                 query
             })
-            const response = await Promise.race([
-                axios.post(url, values),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Request timeout')), 10000)
-                )
-            ]);
-
-            console.log("Message sent successfully");
+            const { data: message } = await axios.post(url, values);
+            const chatId = query.channelId || query.conversationId;
+            queryClient.setQueryData<ChatData>(["chat:" + chatId], (data) => upsertMessage(data, message));
+            form.reset();
+            form.clearErrors();
 
         } catch (error) {
             console.error("Error sending message:", error);
             form.setValue("content", values.content);
 
-            // You might want to show a toast notification here
-            // toast.error("Failed to send message. Please try again.");
+            form.setError("content", { message: "Message could not be sent. Please try again." });
+        } finally {
+            sending.current = false;
         }
     }
 
@@ -103,6 +104,7 @@ const ChatInput = ({ apiUrl, query, name, type }: ChatInputProps) => {
                                 </button>
                             </div>
                         </FormControl>
+                        <FormMessage className="px-4 pb-2" />
                     </FormItem>
                 )} />
             </form>

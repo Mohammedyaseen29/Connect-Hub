@@ -2,7 +2,8 @@ import { currentProfile } from "@/lib/current-profile";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-export async function PATCH(req:Request,{params}:{params:{serverId:string}}){
+export async function PATCH(req:Request,{ params: paramsPromise }:{params: Promise<{ serverId: string }>}){
+    const params = await paramsPromise;
 try {
     const profile = await currentProfile();
     if(!profile){

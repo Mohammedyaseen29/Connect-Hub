@@ -1,92 +1,52 @@
-import { useSocket } from '@/components/Provider/socketProvider';
-import { Member, Message, Profile } from "@prisma/client";
+import { useSocket } from "@/components/Provider/socketProvider";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { ChatMessage, ChatData, upsertMessage } from "@/lib/chat-cache.cjs";
 
 type ChatSocketProps = {
-    addKey: string;
-    updateKey: string;
-    queryKey: string;
-}
+    addKey: string; updateKey: string; queryKey: string;
+    chatId: string; type: "channel" | "conversation";
+};
 
-type MessageWithMemberProfile = Message & {
-    member: Member & {
-        profile: Profile;
-    }
-}
-
-export const useChatSocket = ({ addKey, updateKey, queryKey }: ChatSocketProps) => {
+export const useChatSocket = ({ addKey, updateKey, queryKey, chatId, type }: ChatSocketProps) => {
     const { socket } = useSocket();
     const queryClient = useQueryClient();
+    const [isSubscribed, setSubscribed] = useState(false);
 
     useEffect(() => {
-        if (!socket) {
-            return;
-        }
-
-        // Handle new messages
-        const handleNewMessage = (message: MessageWithMemberProfile) => {
-            console.log("New message received:", message);
-
-            queryClient.setQueryData([queryKey], (oldData: any) => {
-                if (!oldData || !oldData.pages || oldData.pages.length === 0) {
-                    return {
-                        pages: [{
-                            items: [message],
-                            nextCursor: null
-                        }]
-                    };
-                }
-
-                const newData = [...oldData.pages];
-                newData[0] = {
-                    ...newData[0],
-                    items: [message, ...newData[0].items]
-                };
-
-                return {
-                    ...oldData,
-                    pages: newData
-                };
+        setSubscribed(false);
+        if (!socket) return;
+        let active = true;
+        const chat = { id: chatId, type };
+        const receive = (message: ChatMessage) => {
+            queryClient.setQueryData<ChatData>([queryKey], (data) => upsertMessage(data, message));
+        };
+        const update = (message: ChatMessage) => {
+            queryClient.setQueryData<ChatData>([queryKey], (data) => upsertMessage(data, message, false));
+        };
+        const subscribe = () => {
+            setSubscribed(false);
+            socket.timeout(5000).emit("chat:subscribe", chat, (error: Error | null, reply: { ok?: boolean }) => {
+                if (!active) return;
+                setSubscribed(!error && reply?.ok === true);
+                // Recover messages between the initial fetch and room join, or during disconnection.
+                void queryClient.invalidateQueries({ queryKey: [queryKey] });
             });
         };
-
-        // Handle message updates
-        const handleUpdateMessage = (message: MessageWithMemberProfile) => {
-            console.log("Message updated:", message);
-
-            queryClient.setQueryData([queryKey], (oldData: any) => {
-                if (!oldData || !oldData.pages || oldData.pages.length === 0) {
-                    return oldData;
-                }
-
-                const newData = oldData.pages.map((page: any) => {
-                    return {
-                        ...page,
-                        items: page.items.map((item: MessageWithMemberProfile) => {
-                            if (item.id === message.id) {
-                                return message;
-                            }
-                            return item;
-                        })
-                    };
-                });
-
-                return {
-                    ...oldData,
-                    pages: newData
-                };
-            });
-        };
-
-        // Register event listeners
-        socket.on(addKey, handleNewMessage);
-        socket.on(updateKey, handleUpdateMessage);
-
-        // Cleanup listeners
+        const disconnect = () => setSubscribed(false);
+        socket.on(addKey, receive);
+        socket.on(updateKey, update);
+        socket.on("connect", subscribe);
+        socket.on("disconnect", disconnect);
+        if (socket.connected) subscribe();
         return () => {
-            socket.off(addKey, handleNewMessage);
-            socket.off(updateKey, handleUpdateMessage);
+            active = false;
+            socket.off(addKey, receive);
+            socket.off(updateKey, update);
+            socket.off("connect", subscribe);
+            socket.off("disconnect", disconnect);
+            if (socket.connected) socket.emit("chat:unsubscribe", chat);
         };
-    }, [socket, addKey, updateKey, queryKey, queryClient]);
-}
+    }, [socket, addKey, updateKey, queryKey, queryClient, chatId, type]);
+    return { isSubscribed };
+};

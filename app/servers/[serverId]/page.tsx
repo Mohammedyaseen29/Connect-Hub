@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 
 
 
-const server = async({params}:{params:{serverId:string}}) => {
+const server = async({ params: paramsPromise }:{params: Promise<{ serverId: string }>}) => {
+    const params = await paramsPromise;
     const profile = await currentProfile();
     const { redirectToSignIn } = await auth();
     if(!profile){

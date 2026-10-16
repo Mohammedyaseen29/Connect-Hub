@@ -1,97 +1,30 @@
-import { currentPagesProfile } from "@/lib/current-pagesprofile";
-import { db } from "@/lib/db";
-import { NextApiResponseServerio } from "@/type";
 import { NextApiRequest } from "next";
+import { NextApiResponseServerio } from "@/type";
+import { currentPagesUserId } from "@/lib/current-pagesprofile";
+import { chatIdSchema, messageCreateSchema } from "@/lib/message-validation";
+import { createChatMessage } from "@/lib/create-chat-message";
+import { broadcastChatMessage } from "@/lib/chat-realtime.cjs";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponseServerio) {
-    if (req.method !== "POST") {
-        return res.status(405).json({ error: "This method is not allowed!" })
-    }
-
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
     try {
-        const profile = await currentPagesProfile(req);
-        const { content, fileUrl } = req.body;
-        const { serverId, channelId } = req.query;
-
-        if (!profile) {
-            return res.status(401).json({ error: "UnAuthorized data" });
+        const userId = await currentPagesUserId(req);
+        if (!userId) return res.status(401).json({ error: "Unauthorized" });
+        const body = messageCreateSchema.safeParse(req.body);
+        const chatId = chatIdSchema.safeParse(req.query.channelId);
+        const serverId = chatIdSchema.safeParse(req.query.serverId);
+        if (!body.success || !chatId.success || !serverId.success) {
+            return res.status(400).json({ error: "Invalid message or chat" });
         }
-        if (!content) {
-            return res.status(400).json({ error: "content missing!" })
-        }
-        if (!serverId) {
-            return res.status(400).json({ error: "ServerId is missing" })
-        }
-        if (!channelId) {
-            return res.status(400).json({ error: "channelId is missing" })
-        }
-
-        const server = await db.server.findFirst({
-            where: {
-                id: serverId as string,
-                member: {
-                    some: {
-                        profileId: profile.id,
-                    }
-                }
-            },
-            include: {
-                member: true,
-            }
-        });
-
-        if (!server) {
-            return res.status(404).json({ error: "Server not found!" })
-        }
-
-        const channel = await db.channel.findFirst({
-            where: {
-                id: channelId as string,
-                serverId: serverId as string,
-            }
-        })
-
-        if (!channel) {
-            return res.status(404).json({ error: "Channel not found!" })
-        }
-
-        const member = server.member.find((member: any) => member.profileId === profile.id);
-        if (!member) {
-            return res.status(404).json({ error: "member not found!" })
-        }
-
-        // Create message with transaction for better performance
-        const message = await db.message.create({
-            data: {
-                content,
-                fileUrl,
-                channelId: channelId as string,
-                memberId: member.id,
-            },
-            include: {
-                member: {
-                    include: {
-                        profile: true,
-                    }
-                }
-            }
-        });
-
-        // Emit socket event immediately after message creation
-        const channelKey = `chat:${channelId}:messages`;
-
-        // Check if socket server exists and emit
-        if (res?.socket?.server?.io) {
-            res.socket.server.io.emit(channelKey, message);
-            console.log(`Message emitted to channel: ${channelKey}`);
-        } else {
-            console.error("Socket server not available");
-        }
-
-        return res.status(200).json(message);
-
+        const start = performance.now();
+        const created = await createChatMessage({ userId, type: "channel", chatId: chatId.data, serverId: serverId.data, ...body.data });
+        if (!created) return res.status(404).json({ error: "Chat not found" });
+        res.setHeader("Server-Timing", "db;dur=" + (performance.now() - start).toFixed(1));
+        broadcastChatMessage(res.socket?.server?.io, { type: "channel", id: chatId.data }, created.message, created.recipientProfileIds);
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.status(200).json(created.message);
     } catch (error) {
-        console.log("[MESSAGE ERROR]", error);
-        return res.status(500).json({ error: "Internal error" })
+        console.error("[CHANNEL_MESSAGE_POST]", error);
+        return res.status(500).json({ error: "Internal Error" });
     }
 }

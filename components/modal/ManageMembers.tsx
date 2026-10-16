@@ -8,7 +8,7 @@ import { useModal } from '@/Hooks/use-modal-hook'
 import { Label } from '../ui/label'
 import { Check, Copy, Gavel, Loader2, MoreVertical, RefreshCw, Shield, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react'
 import axios from 'axios'
-import qs from "query-string"
+import qs from "@/lib/query-url"
 import { ServerWithMembersWithProfile } from '@/type'
 import { ScrollArea } from '../ui/scroll-area'
 import UserAvatar from '@/components/UserAvatar'

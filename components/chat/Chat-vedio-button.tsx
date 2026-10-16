@@ -1,6 +1,6 @@
 "use client";
 
-import qs from "query-string";
+import qs from "@/lib/query-url";
 import {usePathname,useRouter,useSearchParams} from "next/navigation";
 import { Video,VideoOff } from "lucide-react";
 import ActionTooltip from "../actionTooltip";
@@ -21,7 +21,7 @@ export const ChatVideoButton= () => {
             query: {
                 video : isVideo ? undefined :true,
             }
-        },{skipNull:true});
+        });
         router.push(url);
     }
 

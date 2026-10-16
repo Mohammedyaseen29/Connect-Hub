@@ -33,10 +33,11 @@ export const ChatMessages = ({name,member,chatId,apiUrl,socketUrl,socketQuery,pa
     const queryKey = `chat:${chatId}`;
     const addKey = `chat:${chatId}:messages`;
     const updateKey = `chat:${chatId}:messages:update`
-    const {data,fetchNextPage,hasNextPage,isFetchingNextPage,status} = useChatQuery({queryKey,apiUrl,paramKey,paramValue});
+    const {isSubscribed} = useChatSocket({queryKey,addKey,updateKey,chatId,type});
+    const {data,fetchNextPage,hasNextPage,isFetchingNextPage,status} = useChatQuery({queryKey,apiUrl,paramKey,paramValue,isSubscribed});
     const chatRef = useRef<ElementRef<"div">>(null);
     const bottomRef = useRef<ElementRef<"div">>(null);
-    useChatSocket({queryKey,addKey,updateKey})
+
     useChatScroll({chatRef,bottomRef,loadMore:fetchNextPage,shouldLoadMore: !isFetchingNextPage && !!hasNextPage, count:data?.pages?.[0]?.items?.length ?? 0,})
     
 

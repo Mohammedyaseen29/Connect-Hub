@@ -2,3 +2,9 @@ node_modules
 .next
 .git
 .env
+.npm-cache
+audit-before.json
+audit-after.json
+audit-current.json
+audit-registry.json
+audit-all.json

@@ -4,7 +4,7 @@ import { useState} from 'react'
 import { Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle} from '../ui/dialog'
 import { Button } from '../ui/button'
 import { useModal } from '@/Hooks/use-modal-hook'
-import qs from "query-string";
+import qs from "@/lib/query-url";
 
 import axios from 'axios'
 import { useRouter } from 'next/navigation'

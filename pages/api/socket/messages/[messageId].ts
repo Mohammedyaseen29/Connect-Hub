@@ -2,126 +2,47 @@ import { NextApiRequest } from "next";
 import { NextApiResponseServerio } from "@/type";
 import { currentPagesProfile } from "@/lib/current-pagesprofile";
 import { db } from "@/lib/db";
-import { MemberRole } from "@prisma/client";
+import { chatIdSchema, messageContentSchema } from "@/lib/message-validation";
+import { publishChatMessage } from "@/lib/chat-realtime.cjs";
 
-export default async function handler(req:NextApiRequest,res:NextApiResponseServerio){
-    if(req.method !== "DELETE" && req.method !== "PATCH"){
-        return res.status(405).json({error:"Method not allowed"})
-    }
+export default async function handler(req: NextApiRequest, res: NextApiResponseServerio) {
+    if (req.method !== "DELETE" && req.method !== "PATCH") return res.status(405).json({ error: "Method not allowed" });
     try {
         const profile = await currentPagesProfile(req);
-        const {messageId,serverId,channelId} = req.query;
-        const {content} = req.body;
-
-        if(!profile){
-            return res.status(401).json({error:"Unauthorized acces"});
+        if (!profile) return res.status(401).json({ error: "Unauthorized" });
+        const chatId = chatIdSchema.safeParse(req.query.channelId);
+        const messageId = chatIdSchema.safeParse(req.query.messageId);
+        const serverId = chatIdSchema.safeParse(req.query.serverId);
+        const body = req.method === "PATCH" ? messageContentSchema.safeParse(req.body) : undefined;
+        if (!chatId.success || !messageId.success || !serverId.success || (body && !body.success)) {
+            return res.status(400).json({ error: "Invalid message or chat" });
         }
-        if(!serverId){
-            return res.status(400).json({error:"ServerId is missing"})
+        const member = await db.member.findFirst({
+            where: { profileId: profile.id, serverId: serverId.data, server: { channel: { some: { id: chatId.data } } } },
+            select: { id: true, role: true },
+        });
+        if (!member) return res.status(404).json({ error: "Chat not found" });
+        const existing = await db.message.findFirst({
+            where: { id: messageId.data, channelId: chatId.data, deleted: false },
+        });
+        if (!existing) return res.status(404).json({ error: "Message not found" });
+        const isOwner = existing.memberId === member.id;
+        const canDelete = isOwner || member.role === "ADMIN" || member.role === "MODERATOR";
+        if ((req.method === "DELETE" && !canDelete) || (req.method === "PATCH" && !isOwner)) {
+            return res.status(403).json({ error: "Forbidden" });
         }
-        if(!channelId){
-            return res.status(400).json({error:"ChannelId is missing"})
-        }
-        const server = await db.server.findFirst({
-            where:{
-                id:serverId as string,
-                member:{
-                    some:{
-                        profileId:profile.id,
-                    }
-                }
-            },
-            include:{
-                member:true,
-            }
-        })
-        if(!server){
-            return res.status(400).json({error:"server is not found!"})
-        }
-
-        const channel = await db.channel.findFirst({
-            where:{
-                id:channelId as string,
-                serverId: serverId as string,
-            }
-        })
-        if(!channel){
-            return res.status(400).json({error:"Channel is not found"})
-        }
-        const member = server.member.find((member:any)=>member.profileId === profile.id);
-        if(!member){
-            return res.status(400).json({error:"Member not found"})
-        }
-
-        let message = await db.message.findFirst({
-            where:{
-                id: messageId as string,
-                channelId: channelId as string,
-            },
-            include:{
-                member:{
-                    include:{
-                        profile:true
-                    }
-                }
-            }
-        })
-        if(!message || message.deleted){
-            return res.status(400).json({error:"Message not found"})
-        }
-
-        const messageOwner = message.memberId === member.id;
-        const Admin = member.role === MemberRole.ADMIN;
-        const Moderator = member.role === MemberRole.MODERATOR;
-        const canModify = messageOwner || Admin || Moderator;
-        
-        if(!canModify){
-            return res.status(401).json({error:"UnAuthorized access"})
-        }
-        if(req.method === "DELETE"){
-            message = await db.message.update({
-                where:{
-                    id:messageId as string,
-                },
-                data:{
-                    fileUrl:null,
-                    content:"This message has gone incognito. Deleted!",
-                    deleted:true,
-                },
-                include:{
-                    member:{
-                        include:{
-                            profile:true,
-                        }
-                    }
-                }
-            })
-        }
-        if(req.method === "PATCH"){
-            if(!messageOwner){
-                return res.status(401).json({error:"UnAuthorized access"})
-            }
-            message = await db.message.update({
-                where:{
-                    id:messageId as string,
-                },
-                data:{
-                    content,
-                },
-                include:{
-                    member:{
-                        include:{
-                            profile:true,
-                        }
-                    }
-                }
-            })
-        }
-        const updateKey = `chat:${channelId}:messages:update`;
-        res?.socket?.server?.io?.emit(updateKey,message);
-        return res.status(200).json(message)
+        const message = await db.message.update({
+            where: { id: messageId.data },
+            data: req.method === "DELETE"
+                ? { fileUrl: null, content: "This message has gone incognito. Deleted!", deleted: true }
+                : { content: body?.success ? body.data.content : existing.content },
+            include: { member: { include: { profile: true } } },
+        });
+        await publishChatMessage(res.socket?.server?.io, db, { type: "channel", id: chatId.data }, message, true);
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.status(200).json(message);
     } catch (error) {
-        console.log("[Message_id]",error);
-        return res.status(500).json({error:"Internal Server error"})
+        console.error("[MESSAGE_UPDATE]", error);
+        return res.status(500).json({ error: "Internal Error" });
     }
 }

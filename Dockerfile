@@ -1,17 +1,15 @@
 # ---------------------------
 # 1. Build stage
 # ---------------------------
-FROM node:20 AS builder
+FROM node:22 AS builder
 
 WORKDIR /app
 
 # Build arguments
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-ARG CLERK_SECRET_KEY
 
 # Environment variables
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-ENV CLERK_SECRET_KEY=$CLERK_SECRET_KEY
 
 
 COPY package.json package-lock.json ./
@@ -27,7 +25,7 @@ RUN npm run build
 # ---------------------------
 # 2. Production stage
 # ---------------------------
-FROM node:20 AS runner
+FROM node:22 AS runner
 
 
 RUN apt-get update && apt-get install -y dumb-init && rm -rf /var/lib/apt/lists/*
@@ -48,9 +46,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
+COPY --from=builder --chown=nextjs:nodejs /app/lib/chat-realtime.cjs ./lib/chat-realtime.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./next.config.js
 
 USER nextjs
 
 EXPOSE 3000
+ENV HOSTNAME=0.0.0.0
 
 CMD ["dumb-init", "npm", "start"]

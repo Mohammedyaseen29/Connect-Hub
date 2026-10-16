@@ -10,12 +10,13 @@ import { MediaRoom } from '@/components/media-room';
 
 
 interface chatheaderProps{
-    params:{
+    params:Promise<{
         serverId:string;
         channelId:string;
-    }
+    }>
 }
-const page = async({params}:chatheaderProps) => {
+const page = async({params: paramsPromise}:chatheaderProps) => {
+    const params = await paramsPromise;
     const profile = await currentProfile();
     const {redirectToSignIn} = await auth();
     if(!profile){
@@ -24,6 +25,7 @@ const page = async({params}:chatheaderProps) => {
     const channel = await db.channel.findUnique({
         where:{
             id:params.channelId,
+            serverId:params.serverId,
         }
     })
     const member = await db.member.findFirst({

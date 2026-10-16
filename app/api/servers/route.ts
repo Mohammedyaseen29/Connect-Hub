@@ -1,4 +1,4 @@
-import {v4 as uuidv4} from "uuid";
+import { randomUUID } from "node:crypto";
 import { currentProfile } from "@/lib/current-profile";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
@@ -17,7 +17,7 @@ export async function POST(req:Request) {
                 profileId:profile.id,
                 name,
                 imageUrl,
-                inviteCode: uuidv4(),
+                inviteCode: randomUUID(),
                 channel:{
                     create:[
                         {name:"general",profileId:profile.id,}

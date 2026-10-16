@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import ModalProvider from '@/components/Provider/modalProvided'
 import { SockerProvider } from '@/components/Provider/socketProvider'
 import { QueryProvider } from '@/components/Provider/queryProvider'
+import { ServiceWorkerProvider } from '@/components/Provider/service-worker-provider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -33,8 +34,9 @@ export default function RootLayout({
           <body className={cn(inter.className,"bg-white dark:bg-[#313338]")}>
             <ThemeProvider attribute='class' defaultTheme='dark' enableSystem disableTransitionOnChange>
               <SockerProvider>
-              <ModalProvider />
               <QueryProvider>
+              <ModalProvider />
+              <ServiceWorkerProvider />
               {children}
               </QueryProvider>
               </SockerProvider>

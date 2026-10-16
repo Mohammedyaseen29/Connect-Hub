@@ -2,6 +2,9 @@
 import { db } from "./db";
 
 export const getOrCreateConversation = async(memberOneId:string,membertwoId:string)=>{
+    if (memberOneId === membertwoId) return null;
+    const members = await db.member.findMany({ where: { id: { in: [memberOneId, membertwoId] } }, select: { serverId: true } });
+    if (members.length !== 2 || members[0].serverId !== members[1].serverId) return null;
     let conversation = await findConversation(memberOneId,membertwoId) || await findConversation(membertwoId,memberOneId);
     if(!conversation){
         conversation = await createConversation(memberOneId,membertwoId);

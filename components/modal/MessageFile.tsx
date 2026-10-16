@@ -1,8 +1,11 @@
-"use client"
+"use client";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChatData, upsertMessage } from "@/lib/chat-cache.cjs";
+
 import React from 'react'
 import axios from "axios"
-import { useRouter } from 'next/navigation'
-import qs from "query-string";
+
+import qs from "@/lib/query-url";
 import { Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription, DialogFooter } from '../ui/dialog'
 import { Form,FormControl,FormField,FormItem,FormLabel,FormMessage } from '../ui/form'
 import { Button } from '../ui/button'
@@ -26,9 +29,10 @@ export const MessageFile = () => {
         }
     })
     const {type,isopen,onClose,data} = useModal();
+    const queryClient = useQueryClient();
     const {apiUrl,query} = data;
     const isLoading = form.formState.isSubmitting;
-    const router = useRouter()
+
     const Modalopen = isopen && type === "messageFile"; 
 
     const handleClose = ()=>{
@@ -43,8 +47,9 @@ export const MessageFile = () => {
                 url:apiUrl || "",
                 query
             })
-            await axios.post(url,{...values,content:values.fileUrl});
-            router.refresh();
+            const { data: message } = await axios.post(url, {...values, content:values.fileUrl});
+            queryClient.setQueryData<ChatData>(["chat:" + (query?.channelId || query?.conversationId)], (data) => upsertMessage(data, message));
+
             handleClose();          
             
         } catch (error) {

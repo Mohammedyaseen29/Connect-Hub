@@ -1,0 +1,23 @@
+name: Render keep-alive
+
+on:
+  schedule:
+    # Every 10 minutes, avoiding the start of the hour.
+    - cron: '3-59/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping Connect Hub on Render
+        run: |
+          status=$(curl --silent --show-error --output /dev/null \
+            --write-out '%{http_code}' --connect-timeout 10 --max-time 75 \
+            --retry 1 --retry-delay 5 \
+            https://connect-hub-70e6.onrender.com/sign-in)
+          printf 'Render returned HTTP %s\n' "$status"
+          test "$status" = 200
